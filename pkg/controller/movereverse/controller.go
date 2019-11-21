@@ -1,10 +1,9 @@
-package datasync
+package movereverse
 
 import (
 	"context"
 
 	kubemovev1alpha1 "github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,20 +13,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var log = logf.Log.WithName("controller_datasync")
+var log = logf.Log.WithName("controller_movereverse")
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
  */
 
-// Add creates a new DataSync Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new MoveReverse Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
@@ -35,29 +34,19 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileDataSync{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileMoveReverse{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("datasync-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("movereverse-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to primary resource DataSync
-	err = c.Watch(&source.Kind{Type: &kubemovev1alpha1.DataSync{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner DataSync
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &kubemovev1alpha1.DataSync{},
-	})
+	// Watch for changes to primary resource MoveReverse
+	err = c.Watch(&source.Kind{Type: &kubemovev1alpha1.MoveReverse{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -65,29 +54,27 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-var _ reconcile.Reconciler = &ReconcileDataSync{}
+var _ reconcile.Reconciler = &ReconcileMoveReverse{}
 
-// ReconcileDataSync reconciles a DataSync object
-type ReconcileDataSync struct {
+// ReconcileMoveReverse reconciles a MoveReverse object
+type ReconcileMoveReverse struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a DataSync object and makes changes based on the state read
-// and what is in the DataSync.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
+// Reconcile reads that state of the cluster for a MoveReverse object and makes changes based on the state read
+// and what is in the MoveReverse.Spec
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileDataSync) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileMoveReverse) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling DataSync")
+	reqLogger.Info("Reconciling MoveReverse")
 
-	// Fetch the DataSync instance
-	instance := &kubemovev1alpha1.DataSync{}
+	// Fetch the MoveReverse instance
+	instance := &kubemovev1alpha1.MoveReverse{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -103,7 +90,7 @@ func (r *ReconcileDataSync) Reconcile(request reconcile.Request) (reconcile.Resu
 	// Define a new Pod object
 	pod := newPodForCR(instance)
 
-	// Set DataSync instance as the owner and controller
+	// Set MoveReverse instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -130,7 +117,7 @@ func (r *ReconcileDataSync) Reconcile(request reconcile.Request) (reconcile.Resu
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *kubemovev1alpha1.DataSync) *corev1.Pod {
+func newPodForCR(cr *kubemovev1alpha1.MoveReverse) *corev1.Pod {
 	labels := map[string]string{
 		"app": cr.Name,
 	}

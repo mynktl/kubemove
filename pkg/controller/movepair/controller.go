@@ -4,19 +4,16 @@ import (
 	"context"
 
 	kubemovev1alpha1 "github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
-
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -52,16 +49,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner MovePair
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &kubemovev1alpha1.MovePair{},
-	})
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -77,8 +64,6 @@ type ReconcileMovePair struct {
 
 // Reconcile reads that state of the cluster for a MovePair object and makes changes based on the state read
 // and what is in the MovePair.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -100,54 +85,50 @@ func (r *ReconcileMovePair) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
-
-	// Set MovePair instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
-		return reconcile.Result{}, err
+	stat, err := r.verifyMovePairStatus(instance)
+	if err != nil {
+		reqLogger.Error(err, "Failed to verify movePair")
+	}
+	err = r.updateStatus(instance, stat)
+	if err != nil {
+		reqLogger.Error(err, "Failed to update movePair status")
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	reqLogger.Info("MovePair successfully verified")
 	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *kubemovev1alpha1.MovePair) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
+func (r *ReconcileMovePair) verifyMovePairStatus(mpair *kubemovev1alpha1.MovePair) (string, error) {
+	err := clientcmd.Validate(mpair.Spec.Config)
+	if err != nil {
+		return "Errored", err
 	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
+
+	config, err := clientcmd.NewNonInteractiveClientConfig(
+		mpair.Spec.Config,
+		mpair.Spec.Config.CurrentContext,
+		&clientcmd.ConfigOverrides{},
+		clientcmd.NewDefaultClientConfigLoadingRules()).
+		ClientConfig()
+	if err != nil {
+		return "Errored", err
 	}
+
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "Errored", err
+	}
+
+	// To verify access, let's fetch remote server version
+	_, err = client.ServerVersion()
+	if err != nil {
+		return "Errored", err
+	}
+	return "", nil
+}
+
+// update movePair status
+func (r *ReconcileMovePair) updateStatus(mpair *kubemovev1alpha1.MovePair, status string) error {
+	mpair.Status.Status = status
+	return r.client.Update(context.TODO(), mpair)
 }

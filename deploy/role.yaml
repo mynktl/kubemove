@@ -54,5 +54,6 @@ rules:
   - datasyncs
   - moveswitches
   - movereverses
+  - moveengines
   verbs:
   - '*'

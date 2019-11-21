@@ -1,0 +1,6 @@
+nohup.out
+.DS_Store
+.testfiles/
+.vscode/
+build/
+_output/
