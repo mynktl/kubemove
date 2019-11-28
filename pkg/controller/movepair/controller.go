@@ -4,9 +4,9 @@ import (
 	"context"
 
 	kubemovev1alpha1 "github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
+	kmpair "github.com/kubemove/kubemove/pkg/pair"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -104,27 +104,17 @@ func (r *ReconcileMovePair) verifyMovePairStatus(mpair *kubemovev1alpha1.MovePai
 		return "Errored", err
 	}
 
-	config, err := clientcmd.NewNonInteractiveClientConfig(
-		mpair.Spec.Config,
-		mpair.Spec.Config.CurrentContext,
-		&clientcmd.ConfigOverrides{},
-		clientcmd.NewDefaultClientConfigLoadingRules()).
-		ClientConfig()
-	if err != nil {
-		return "Errored", err
-	}
-
-	client, err := kubernetes.NewForConfig(config)
+	dclient, err := kmpair.FetchRemoteDiscoveryClient(mpair)
 	if err != nil {
 		return "Errored", err
 	}
 
 	// To verify access, let's fetch remote server version
-	_, err = client.ServerVersion()
+	_, err = dclient.ServerVersion()
 	if err != nil {
 		return "Errored", err
 	}
-	return "", nil
+	return "Success", nil
 }
 
 // update movePair status

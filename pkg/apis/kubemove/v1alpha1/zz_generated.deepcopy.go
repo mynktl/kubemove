@@ -5,6 +5,7 @@
 package v1alpha1
 
 import (
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -219,10 +220,8 @@ func (in *MoveEngineSpec) DeepCopyInto(out *MoveEngineSpec) {
 	*out = *in
 	if in.Selectors != nil {
 		in, out := &in.Selectors, &out.Selectors
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }

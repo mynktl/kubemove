@@ -13,14 +13,14 @@ type MoveEngineSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
-	MovePair         string            `json:"movePair"`
-	Namespace        string            `json:"namespace"`
-	RemoteNamespace  string            `json:"removeNamespace"`
-	Selectors        map[string]string `json:"selectors"`
-	SyncPeriod       string            `json:"syncPeriod"`
-	Mode             string            `json:"mode"`
-	PluginProvider   string            `json:"plugin"`
-	IncludeResources bool              `json:"includeResources"`
+	MovePair         string                `json:"movePair"`
+	Namespace        string                `json:"namespace"`
+	RemoteNamespace  string                `json:"removeNamespace"`
+	Selectors        *metav1.LabelSelector `json:"selectors"`
+	SyncPeriod       string                `json:"syncPeriod"`
+	Mode             string                `json:"mode"`
+	PluginProvider   string                `json:"plugin"`
+	IncludeResources bool                  `json:"includeResources"`
 }
 
 // MoveEngineStatus defines the observed state of MoveEngine
