@@ -104,7 +104,7 @@ func (r *ReconcileMovePair) verifyMovePairStatus(mpair *kubemovev1alpha1.MovePai
 		return "Errored", err
 	}
 
-	dclient, err := kmpair.FetchRemoteDiscoveryClient(mpair)
+	dclient, err := kmpair.FetchPairDiscoveryClient(mpair)
 	if err != nil {
 		return "Errored", err
 	}

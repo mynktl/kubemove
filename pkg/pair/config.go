@@ -3,6 +3,7 @@ package mpair
 import (
 	"github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -42,6 +43,15 @@ func FetchDiscoveryClient() (*discovery.DiscoveryClient, error) {
 	return discovery.NewDiscoveryClientForConfigOrDie(config), nil
 }
 
+func FetchPairDynamicClient(mpair *v1alpha1.MovePair) (dynamic.Interface, error) {
+	config, err := loadClientCmdConfig(mpair.Spec.Config)
+	if err != nil {
+		return nil, err
+	}
+	return dynamic.NewForConfig(config)
+}
+
+// TODO export it
 func loadClientCmdConfig(config clientcmdapi.Config) (*rest.Config, error) {
 	return clientcmd.NewNonInteractiveClientConfig(
 		config,

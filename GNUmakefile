@@ -1,5 +1,18 @@
 all: kubemove-cli datasync engine pair
 
+PACKAGES = $(shell go list ./... | grep -v 'vendor')
+
+format:
+	@echo "--> Running go fmt"
+	@go fmt $(PACKAGES)
+
+vet:
+	go vet ${PACKAGES}
+
+golint:
+	@gometalinter --install
+	@gometalinter --vendor --disable-all -E errcheck -E misspell ./...
+
 kubemove-cli:
 	@echo "Building kubemove-cli"
 	@rm -rf _output/bin/kubemove
