@@ -1,20 +1,21 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
 	"github.com/kubemove/kubemove/pkg/engine"
 	kmpair "github.com/kubemove/kubemove/pkg/pair"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var remoteCfg = "/tmp/cluster-dest"
-var destCfg = "/tmp/cluster-dest"
 
 var log = logf.Log.WithName("test")
 
@@ -34,9 +35,26 @@ var MOV = &v1alpha1.MoveEngine{
 	},
 }
 
-var mlabel = "app=minio"
+var mlabel = "name in (minio, mysql)"
 
 func main() {
+	lns := flag.String("namespace", "default", "namespace")
+	lstr := flag.String("label-selector", "name in (minio)", "label selector")
+	rns := flag.String("remotenamespace", "testns", "remote namespace")
+	flag.Parse()
+
+	if len(*lns) > 0 {
+		MOV.Spec.Namespace = *lns
+	}
+
+	if len(*lstr) > 0 {
+		mlabel = *lstr
+	}
+
+	if len(*rns) > 0 {
+		MOV.Spec.RemoteNamespace = *rns
+	}
+
 	ls, err := metav1.ParseToLabelSelector(mlabel)
 	if err != nil {
 		fmt.Printf("Failed to parse label %v\n", err)
@@ -63,7 +81,7 @@ func main() {
 	}
 
 	me := engine.NewMoveEngineAction(log, mgr.GetClient())
-	err = me.ParseResource(MOV)
+	err = me.ParseResourceEngine(MOV)
 	if err != nil {
 		log.Error(err, "Failed to parse moveEngine")
 		return
@@ -84,8 +102,7 @@ func loadMPAIR() error {
 }
 
 func LoadClient() (manager.Manager, error) {
-	// TODO update the path
-	cfg, err := clientcmd.BuildConfigFromFlags("", "/home/.kube/config")
+	cfg, err := config.GetConfig()
 	if err != nil {
 		fmt.Printf("Failed to fetch k8s cluster config. %+v", err)
 		return nil, err

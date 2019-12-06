@@ -37,6 +37,14 @@ func (m *MoveEngineAction) updateClient(mpair *v1alpha1.MovePair) error {
 		return err
 	}
 
+	gr, err := restmapper.GetAPIGroupResources(m.dclient)
+	if err != nil {
+		fmt.Printf("Failed to fetch group resources %v\n", err)
+		return err
+	}
+
+	m.mapper = restmapper.NewDiscoveryRESTMapper(gr)
+
 	if m.remoteClient, err = pair.FetchPairClient(mpair); err != nil {
 		return err
 	}
@@ -45,6 +53,13 @@ func (m *MoveEngineAction) updateClient(mpair *v1alpha1.MovePair) error {
 		return err
 	}
 
+	rgr, err := restmapper.GetAPIGroupResources(m.remotedClient)
+	if err != nil {
+		fmt.Printf("Failed to fetch remote group resources %v\n", err)
+		return err
+	}
+	m.remoteMapper = restmapper.NewDiscoveryRESTMapper(rgr)
+
 	if m.remotedyClient, err = pair.FetchPairDynamicClient(mpair); err != nil {
 		return err
 	}
@@ -52,19 +67,11 @@ func (m *MoveEngineAction) updateClient(mpair *v1alpha1.MovePair) error {
 }
 
 func (m *MoveEngineAction) getAPIResources() ([]metav1.APIResource, error) {
-	gr, err := restmapper.GetAPIGroupResources(m.dclient)
-	if err != nil {
-		fmt.Printf("Failed to fetch group resources %v\n", err)
-		return nil, err
-	}
-
-	mapper := restmapper.NewDiscoveryRESTMapper(gr)
-
 	tgvr := []schema.GroupVersionResource{}
 	tagvr := make(map[schema.GroupVersionResource]metav1.APIResource)
 	for _, t := range topresource {
 		// TODO need to check error
-		gvr, err := mapper.ResourcesFor(schema.ParseGroupResource(t).WithVersion(""))
+		gvr, err := m.mapper.ResourcesFor(schema.ParseGroupResource(t).WithVersion(""))
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +81,8 @@ func (m *MoveEngineAction) getAPIResources() ([]metav1.APIResource, error) {
 		}
 	}
 
-	pr, err := m.dclient.ServerPreferredResources()
+	//TODO check for failed API groups
+	pr, _ := m.dclient.ServerPreferredResources()
 	d := discovery.FilteredBy(
 		discovery.ResourcePredicateFunc(
 			func(g string, r *metav1.APIResource) bool {
