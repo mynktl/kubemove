@@ -1,0 +1,17 @@
+FROM ubuntu:bionic
+
+ARG GCLOUD_VERSION=272.0.0
+
+LABEL maintainer="Mayank Patel<mayank.patel@mayadata.io>"
+
+RUN apt update && apt install -y  wget python
+
+RUN wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${GCLOUD_VERSION}-linux-x86_64.tar.gz && \
+        tar xf google-cloud-sdk-${GCLOUD_VERSION}-linux-x86_64.tar.gz   &&  \
+        rm google-cloud-sdk-${GCLOUD_VERSION}-linux-x86_64.tar.gz &&    \
+        mv google-cloud-sdk /usr/lib/
+
+#COPY _output/bin/kengine /
+COPY _output/bin/migrate /
+
+ENTRYPOINT ["bash"]

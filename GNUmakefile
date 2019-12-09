@@ -2,6 +2,10 @@ all: kubemove-cli datasync engine pair
 
 PACKAGES = $(shell go list ./... | grep -v 'vendor')
 
+HUB_USER?=mayankrpatel
+MOVE_ENGINE_IMG?=$(HUB_USER)/move-engine
+IMG_TAG=ci
+
 format:
 	@echo "--> Running go fmt"
 	@go fmt $(PACKAGES)
@@ -41,3 +45,7 @@ clean:
 	@echo "Removing old binaries"
 	@rm -rf _output
 	@echo "Done"
+
+engine-image:
+	@echo "Building docker image for kubemove-engine"
+	@docker build -t $(MOVE_ENGINE_IMG):$(IMG_TAG) -f build/Dockerfile-Engine ./build
