@@ -53,7 +53,7 @@ pair: build_dir
 
 clean:
 	@echo "Removing old binaries"
-	@rm -rf ${BULD_DIR}
+	@rm -rf ${BUILD_DIR}
 	@echo "Done"
 
 engine-image: base-image engine
