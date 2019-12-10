@@ -97,6 +97,7 @@ func NewMultiAPIResources() map[string]*MultiResource {
 }
 func NewMoveEngineAction(log logr.Logger, c client.Client) *MoveEngineAction {
 	sr := make(map[schema.GroupVersionResource]NamedObj)
+	syncedMap := make(map[MResources]v1alpha1.ResourceStatus)
 	er := make(map[MResources]unstructured.Unstructured)
 	v := make(map[MResources]unstructured.Unstructured)
 	sv := make(map[MResources]unstructured.Unstructured)
@@ -108,6 +109,7 @@ func NewMoveEngineAction(log logr.Logger, c client.Client) *MoveEngineAction {
 		volMap:             v,
 		stsVolMap:          sv,
 		multiAPIResources:  NewMultiAPIResources(),
+		syncedResourceMap:  syncedMap,
 	}
 }
 
@@ -427,7 +429,7 @@ func (m *MoveEngineAction) parseResource(api metav1.APIResource, obj unstructure
 	}
 
 	if !m.ShouldRestore(obj) {
-		fmt.Printf("Skipping api %v %v\n", api.Name, obj.GetName())
+		fmt.Printf("Skipping %v %v\n", api.Name, obj.GetName())
 		return nil
 	}
 

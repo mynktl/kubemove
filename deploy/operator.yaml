@@ -1,24 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubemove
+  name: move-engine
+  namespace: kubemove
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: kubemove
+      name: move-engine
   template:
     metadata:
       labels:
-        name: kubemove
+        name: move-engine
     spec:
       serviceAccountName: kubemove
       containers:
-        - name: kubemove
+        - name: move-engine
           # Replace this with the built image name
-          image: kubemove/kubemove
-          command:
-          - kubemove
+          image: mayankrpatel/move-engine:ci
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
@@ -31,29 +30,43 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "kubemove"
-
+            - name: GOOGLE_KEY_PATH
+              value: /cred/gcp
+            - name: AWS_SHARED_CREDENTIALS_FILE
+              value: /cred/aws-cred
+          volumeMounts:
+            - name: aws-credentials
+              mountPath: /cred
+            - name: gcp-credentials
+              mountPath: /cred
+      volumes:
+        - name: aws-credentials
+          secret:
+            secretName: aws-credential
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credential
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: datasync
+  name: move-pair
+  namespace: kubemove
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: kubemove
+      name: move-pair
   template:
     metadata:
       labels:
-        name: kubemove
+        name: move-pair
     spec:
       serviceAccountName: kubemove
       containers:
-        - name: datasync
+        - name: move-pair
           # Replace this with the built image name
-          image: kubemove/datasync
-          command:
-          - datasync
+          image: mayankrpatel/move-pair:ci
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
@@ -66,73 +79,19 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "kubemove"
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kubeengine
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      name: kubemove
-  template:
-    metadata:
-      labels:
-        name: kubemove
-    spec:
-      serviceAccountName: kubemove
-      containers:
-        - name: kengine
-          # Replace this with the built image name
-          image: kubemove/kubeengine
-          command:
-          - kengine
-          imagePullPolicy: Always
-          env:
-            - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: OPERATOR_NAME
-              value: "kubemove"
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kubepair
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      name: kubemove
-  template:
-    metadata:
-      labels:
-        name: kubemove
-    spec:
-      serviceAccountName: kubemove
-      containers:
-        - name: kubepair
-          # Replace this with the built image name
-          image: kubemove/kubepair
-          command:
-          - kpair
-          imagePullPolicy: Always
-          env:
-            - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: OPERATOR_NAME
-              value: "kubemove"
+            - name: GOOGLE_KEY_PATH
+              value: /cred/gcp
+            - name: AWS_SHARED_CREDENTIALS_FILE
+              value: /cred/aws-cred
+          volumeMounts:
+            - name: aws-credentials
+              mountPath: /cred
+            - name: gcp-credentials
+              mountPath: /cred
+      volumes:
+        - name: aws-credentials
+          secret:
+            secretName: aws-credential
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credential

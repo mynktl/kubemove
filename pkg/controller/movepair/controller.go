@@ -3,26 +3,24 @@ package movepair
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	kubemovev1alpha1 "github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
+	"github.com/kubemove/kubemove/pkg/gcp"
 	kmpair "github.com/kubemove/kubemove/pkg/pair"
+	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 var log = logf.Log.WithName("controller_movepair")
-
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
 
 // Add creates a new MovePair Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -32,14 +30,24 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileMovePair{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileMovePair{
+		client: mgr.GetClient(),
+		scheme: mgr.GetScheme(),
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	logf.SetLogger(zap.Logger())
+
 	// Create a new controller
 	c, err := controller.New("movepair-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
+		return err
+	}
+
+	// activate GCP service account
+	if err = gcp.AuthServiceAccount(); err != nil {
 		return err
 	}
 
@@ -60,6 +68,7 @@ type ReconcileMovePair struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+	log    logr.Logger
 }
 
 // Reconcile reads that state of the cluster for a MovePair object and makes changes based on the state read
@@ -68,8 +77,8 @@ type ReconcileMovePair struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileMovePair) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling MovePair")
+	r.log = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	r.log.Info("Reconciling MovePair")
 
 	// Fetch the MovePair instance
 	instance := &kubemovev1alpha1.MovePair{}
@@ -85,16 +94,18 @@ func (r *ReconcileMovePair) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	stat, err := r.verifyMovePairStatus(instance)
+	status, err := r.verifyMovePairStatus(instance)
 	if err != nil {
-		reqLogger.Error(err, "Failed to verify movePair")
-	}
-	err = r.updateStatus(instance, stat)
-	if err != nil {
-		reqLogger.Error(err, "Failed to update movePair status")
+		r.log.Error(err, "Failed to verify movePair")
 	}
 
-	reqLogger.Info("MovePair successfully verified")
+	err = r.updateStatus(instance, status)
+	if err != nil {
+		r.log.Error(err, "Failed to update movePair status")
+		//TODO requeue
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -114,11 +125,11 @@ func (r *ReconcileMovePair) verifyMovePairStatus(mpair *kubemovev1alpha1.MovePai
 	if err != nil {
 		return "Errored", err
 	}
-	return "Success", nil
+	return "Connected", nil
 }
 
 // update movePair status
 func (r *ReconcileMovePair) updateStatus(mpair *kubemovev1alpha1.MovePair, status string) error {
-	mpair.Status.Status = status
+	mpair.Status.State = status
 	return r.client.Update(context.TODO(), mpair)
 }
