@@ -59,7 +59,6 @@ func (m *MoveEngineAction) RCreateObject(obj unstructured.Unstructured) error {
 		Namespace(obj.GetNamespace()).
 		Create(&obj, metav1.CreateOptions{})
 	if err != nil {
-		fmt.Printf("Object created %v/%v/%v.. %v\n", obj.GetAPIVersion(), obj.GetKind(), obj.GetName(), err)
 		return err
 	}
 	fmt.Printf("Object created %v/%v/%v\n", obj.GetAPIVersion(), obj.GetKind(), obj.GetName())

@@ -14,7 +14,7 @@ type MovePairSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
-	Config clientcmdapi.Config
+	Config clientcmdapi.Config `json:"config"`
 }
 
 // MovePairStatus defines the observed state of MovePair

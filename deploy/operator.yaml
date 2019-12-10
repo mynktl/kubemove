@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubemove
+  name: move-engine
   namespace: kubemove
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: kubemove
+      name: move-engine
   template:
     metadata:
       labels:
-        name: kubemove
+        name: move-engine
     spec:
       serviceAccountName: kubemove
       containers:
-        - name: kubemove
+        - name: move-engine
           # Replace this with the built image name
           image: mayankrpatel/move-engine:ci
           command:
@@ -34,3 +34,36 @@ spec:
             - name: OPERATOR_NAME
               value: "kubemove"
 
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: move-pair
+  namespace: kubemove
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: move-pair
+  template:
+    metadata:
+      labels:
+        name: move-pair
+    spec:
+      serviceAccountName: kubemove
+      containers:
+        - name: move-pair
+          # Replace this with the built image name
+          image: mayankrpatel/move-pair:ci
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "kubemove"

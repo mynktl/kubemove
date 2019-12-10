@@ -429,7 +429,7 @@ func (m *MoveEngineAction) parseResource(api metav1.APIResource, obj unstructure
 	}
 
 	if !m.ShouldRestore(obj) {
-		fmt.Printf("Skipping api %v %v\n", api.Name, obj.GetName())
+		fmt.Printf("Skipping %v %v\n", api.Name, obj.GetName())
 		return nil
 	}
 
