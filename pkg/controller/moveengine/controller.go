@@ -3,24 +3,22 @@ package moveengine
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	kubemovev1alpha1 "github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
+	"github.com/kubemove/kubemove/pkg/gcp"
+	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 var log = logf.Log.WithName("controller_moveengine")
-
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
 
 // Add creates a new MoveEngine Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -35,9 +33,16 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	logf.SetLogger(zap.Logger())
+
 	// Create a new controller
 	c, err := controller.New("moveengine-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
+		return err
+	}
+
+	// activate GCP service account
+	if err = gcp.AuthServiceAccount(); err != nil {
 		return err
 	}
 
@@ -58,6 +63,7 @@ type ReconcileMoveEngine struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+	log    logr.Logger
 }
 
 // Reconcile reads that state of the cluster for a MoveEngine object and makes changes based on the state read
@@ -66,8 +72,8 @@ type ReconcileMoveEngine struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileMoveEngine) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling MoveEngine")
+	r.log = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	r.log.Info("Reconciling MoveEngine")
 
 	// Fetch the MoveEngine instance
 	instance := &kubemovev1alpha1.MoveEngine{}

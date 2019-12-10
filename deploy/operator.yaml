@@ -18,9 +18,6 @@ spec:
         - name: move-engine
           # Replace this with the built image name
           image: mayankrpatel/move-engine:ci
-          command:
-          - sleep
-          - "3600000000000"
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
@@ -33,7 +30,22 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "kubemove"
-
+            - name: GOOGLE_KEY_PATH
+              value: /cred/gcp
+            - name: AWS_SHARED_CREDENTIALS_FILE
+              value: /cred/aws-cred
+          volumeMounts:
+            - name: aws-credentials
+              mountPath: /cred
+            - name: gcp-credentials
+              mountPath: /cred
+      volumes:
+        - name: aws-credentials
+          secret:
+            secretName: aws-credential
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credential
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -73,6 +85,8 @@ spec:
               value: /cred/aws-cred
           volumeMounts:
             - name: aws-credentials
+              mountPath: /cred
+            - name: gcp-credentials
               mountPath: /cred
       volumes:
         - name: aws-credentials

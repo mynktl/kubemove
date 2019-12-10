@@ -38,8 +38,9 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
 	logf.SetLogger(zap.Logger())
+
+	// Create a new controller
 	c, err := controller.New("movepair-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
