@@ -67,3 +67,17 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "kubemove"
+            - name: GOOGLE_KEY_PATH
+              value: /cred/gcp
+            - name: AWS_SHARED_CREDENTIALS_FILE
+              value: /cred/aws-cred
+          volumeMounts:
+            - name: aws-credentials
+              mountPath: /cred
+      volumes:
+        - name: aws-credentials
+          secret:
+            secretName: aws-credential
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credential
