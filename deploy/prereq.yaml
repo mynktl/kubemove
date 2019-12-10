@@ -10,8 +10,6 @@ spec:
     plural: movepairs
     singular: movepair
   scope: Namespaced
-  subresources:
-    status: {}
   validation:
     openAPIV3Schema:
       properties:

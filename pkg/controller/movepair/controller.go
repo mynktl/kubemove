@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-logr/logr"
 	kubemovev1alpha1 "github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
+	"github.com/kubemove/kubemove/pkg/gcp"
 	kmpair "github.com/kubemove/kubemove/pkg/pair"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,6 +42,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logf.SetLogger(zap.Logger())
 	c, err := controller.New("movepair-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
+		return err
+	}
+
+	// activate GCP service account
+	if err = gcp.AuthServiceAccount(); err != nil {
 		return err
 	}
 
@@ -123,6 +129,6 @@ func (r *ReconcileMovePair) verifyMovePairStatus(mpair *kubemovev1alpha1.MovePai
 
 // update movePair status
 func (r *ReconcileMovePair) updateStatus(mpair *kubemovev1alpha1.MovePair, status string) error {
-	mpair.Status.Status = status
+	mpair.Status.State = status
 	return r.client.Update(context.TODO(), mpair)
 }
