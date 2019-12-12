@@ -7,7 +7,6 @@ import (
 	kubemovev1alpha1 "github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
 	"github.com/kubemove/kubemove/pkg/gcp"
 	kmpair "github.com/kubemove/kubemove/pkg/pair"
-	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/clientcmd"
@@ -38,8 +37,6 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	logf.SetLogger(zap.Logger())
-
 	// Create a new controller
 	c, err := controller.New("movepair-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {

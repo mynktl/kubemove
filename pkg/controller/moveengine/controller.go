@@ -2,14 +2,21 @@ package moveengine
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	kubemovev1alpha1 "github.com/kubemove/kubemove/pkg/apis/kubemove/v1alpha1"
+	"github.com/kubemove/kubemove/pkg/engine"
 	"github.com/kubemove/kubemove/pkg/gcp"
-	"github.com/operator-framework/operator-sdk/pkg/log/zap"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	helper "github.com/vmware-tanzu/velero/pkg/discovery"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -28,13 +35,15 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileMoveEngine{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileMoveEngine{
+		client:          mgr.GetClient(),
+		scheme:          mgr.GetScheme(),
+		discoveryHelper: nil,
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	logf.SetLogger(zap.Logger())
-
 	// Create a new controller
 	c, err := controller.New("moveengine-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -61,9 +70,10 @@ var _ reconcile.Reconciler = &ReconcileMoveEngine{}
 type ReconcileMoveEngine struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
-	log    logr.Logger
+	client          client.Client
+	scheme          *runtime.Scheme
+	discoveryHelper helper.Helper
+	log             logr.Logger
 }
 
 // Reconcile reads that state of the cluster for a MoveEngine object and makes changes based on the state read
@@ -79,7 +89,7 @@ func (r *ReconcileMoveEngine) Reconcile(request reconcile.Request) (reconcile.Re
 	instance := &kubemovev1alpha1.MoveEngine{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierr.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
@@ -89,5 +99,55 @@ func (r *ReconcileMoveEngine) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	//TODO
+	if r.discoveryHelper == nil {
+		if err = r.setupHelper(); err != nil {
+			r.log.Error(err, "Error setting up helper")
+			return reconcile.Result{}, err
+		}
+	}
+
+	if err = engine.ValidateEngine(instance); err != nil {
+		r.log.Error(err, "Validation error")
+		return reconcile.Result{}, err
+	}
+
+	//TODO
+	me := engine.NewMoveEngineAction(r.log, r.client, r.discoveryHelper)
+	err = me.ParseResourceEngine(instance)
+	if err != nil {
+		r.log.Error(err, "Failed to parse moveEngine")
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileMoveEngine) setupHelper() error {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return errors.Errorf("Failed to fetch config.. %v", err)
+	}
+
+	dh, err := helper.NewHelper(
+		discovery.NewDiscoveryClientForConfigOrDie(cfg),
+		logrus.New(),
+	)
+	if err != nil {
+		return errors.Errorf("Failed to create helper %v", err)
+	}
+
+	r.discoveryHelper = dh
+
+	go wait.Forever(
+		func() {
+			if err := dh.Refresh(); err != nil {
+				r.log.Error(err, "Error refreshing discovery")
+			}
+		},
+		//TODO set according to sync period
+		5*time.Minute,
+		//		signals.SetupSignalHandler(),
+	)
+	return nil
 }

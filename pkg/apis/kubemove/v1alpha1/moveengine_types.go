@@ -15,7 +15,7 @@ type MoveEngineSpec struct {
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
 	MovePair         string                `json:"movePair"`
 	Namespace        string                `json:"namespace"`
-	RemoteNamespace  string                `json:"removeNamespace"`
+	RemoteNamespace  string                `json:"remoteNamespace"`
 	Selectors        *metav1.LabelSelector `json:"selectors"`
 	SyncPeriod       string                `json:"syncPeriod"`
 	Mode             string                `json:"mode"`
