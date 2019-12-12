@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -36,7 +37,7 @@ func (m *MoveEngineAction) parsePodPV(pv interface{}, ns string, isSTS bool) err
 					continue
 				}
 				if len(pvName) > 0 {
-					pvObj, err := m.getObj(pvName, "", "PersistentVolume")
+					pvObj, err := m.getResource(pvName, "", "PersistentVolume")
 					if err != nil {
 						fmt.Printf("Failed to fetch PV %v.. %v\n", pvName, err)
 					}
@@ -65,7 +66,7 @@ func pvParsePVC(o interface{}, m *MoveEngineAction, ns string, isSTS bool) (stri
 		return "", err
 	}
 
-	pvcObj, err := m.getObj(val, ns, "PersistentVolumeClaim")
+	pvcObj, err := m.getResource(val, ns, "PersistentVolumeClaim")
 	if err != nil {
 		return "", err
 	}
@@ -95,4 +96,33 @@ func isPVDynamicallyProvisioned(obj unstructured.Unstructured) bool {
 		}
 	}
 	return false
+}
+
+func (m *MoveEngineAction) parseVolumes(api metav1.APIResource, obj unstructured.Unstructured, isSTS bool) error {
+	if api.Name != "pods" {
+		return nil
+	}
+
+	p, ok, err := unstructured.NestedFieldCopy(obj.Object, "spec", "volumes")
+	if !ok && err == nil {
+		fmt.Printf("No volumes for %v/%v\n", obj.GetKind(), obj.GetName())
+		return nil
+	}
+	if err != nil {
+		fmt.Printf("Failed to get volumes for %v/%v.. %v\n", obj.GetKind(), obj.GetName(), err)
+		return err
+	}
+
+	pvlist, ok := p.([]interface{})
+	if !ok {
+		fmt.Printf("Failed to parse volume list for %v/%v.. type is %T, expected []interface{}\n", obj.GetKind(), obj.GetName(), p)
+		return errors.Errorf("Failed to parse volumes for %v/%v.. type is %T, expected []interface{}\n", obj.GetKind(), obj.GetName(), p)
+	}
+	for _, l := range pvlist {
+		err = m.parsePodPV(l, obj.GetNamespace(), isSTS)
+		if err != nil {
+			fmt.Printf("Failed to parse pod PV.. %v\n", err)
+		}
+	}
+	return nil
 }

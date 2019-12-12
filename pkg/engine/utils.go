@@ -25,6 +25,9 @@ func (m *MoveEngineAction) addToResourceList(obj unstructured.Unstructured) {
 	} else {
 		o[sr.Name] = obj
 	}
+
+	//TODO If resource is having multiple version let's add it to other groups also
+
 	m.resourceList = append(m.resourceList, obj)
 }
 

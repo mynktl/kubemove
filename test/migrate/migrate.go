@@ -16,6 +16,7 @@ import (
 )
 
 var remoteCfg = "/tmp/cluster-dest"
+var MPAIR v1alpha1.MovePair
 
 var log = logf.Log.WithName("test")
 
@@ -68,7 +69,7 @@ func main() {
 		return
 	}
 
-	_, err = tverifyMovePairStatus(&engine.MPAIR)
+	_, err = tverifyMovePairStatus(&MPAIR)
 	if err != nil {
 		fmt.Printf("Failed to verify mpair status %v\n", err)
 		return
@@ -80,7 +81,7 @@ func main() {
 		return
 	}
 
-	me := engine.NewMoveEngineAction(log, mgr.GetClient())
+	me := engine.NewMoveEngineAction(log, mgr.GetClient(), nil /*TODO: need to set*/)
 	err = me.ParseResourceEngine(MOV)
 	if err != nil {
 		log.Error(err, "Failed to parse moveEngine")
@@ -95,9 +96,9 @@ func loadMPAIR() error {
 		fmt.Printf("Failed to load config from %v.. %v\n", remoteCfg, err)
 		return err
 	}
-	engine.MPAIR.Name = "testPair"
-	engine.MPAIR.Namespace = "kubens"
-	engine.MPAIR.Spec.Config = *config
+	MPAIR.Name = "testPair"
+	MPAIR.Namespace = "kubens"
+	MPAIR.Spec.Config = *config
 	return nil
 }
 
