@@ -116,8 +116,11 @@ func (r *ReconcileMoveEngine) Reconcile(request reconcile.Request) (reconcile.Re
 	me := engine.NewMoveEngineAction(r.log, r.client, r.discoveryHelper)
 	err = me.ParseResourceEngine(instance)
 	if err != nil {
-		r.log.Error(err, "Failed to parse moveEngine")
-		return reconcile.Result{}, err
+		r.log.Error(err, "Failed to parse resources")
+	}
+	err = me.UpdateMoveEngineStatus(err)
+	if err != nil {
+		r.log.Error(err, "Failed to update status")
 	}
 
 	return reconcile.Result{}, nil

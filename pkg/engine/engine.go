@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -140,13 +142,9 @@ func (m *MoveEngineAction) ParseResourceEngine(mov *v1alpha1.MoveEngine) error {
 		return err
 	}
 
-	err = m.syncResourceList()
-	if err != nil {
-		return err
-	}
-
 	m.resetMultiAPIResources()
-	return nil
+
+	return m.syncResourceList()
 }
 
 func (m *MoveEngineAction) resetMultiAPIResources() {
@@ -194,4 +192,26 @@ func (m *MoveEngineAction) updateClient(mpair *v1alpha1.MovePair) error {
 		return err
 	}
 	return nil
+}
+
+func (m *MoveEngineAction) UpdateMoveEngineStatus(err error) error {
+	lastStatus := m.mov.Status
+	newStatus := v1alpha1.MoveEngineStatus{}
+	if err != nil {
+		newStatus.Status = "Errored"
+	} else {
+		newStatus.Status = "Synced"
+	}
+
+	newStatus.SyncedTime = metav1.Time{Time: time.Now()}
+	newStatus.LastSyncedTime = lastStatus.LastSyncedTime
+	newStatus.LastStatus = lastStatus.Status
+
+	for _, l := range m.syncedResourceMap {
+		r := l
+		newStatus.Resources = append(newStatus.Resources, &r)
+	}
+
+	m.mov.Status = newStatus
+	return m.client.Update(context.TODO(), &m.mov)
 }

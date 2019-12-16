@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -152,6 +153,8 @@ func (m *MoveEngineAction) syncObj(obj unstructured.Unstructured) error {
 	gvrlist, err := m.remoteMapper.ResourcesFor(schema.ParseGroupResource(obj.GetKind()).WithVersion(""))
 	if err == nil && len(gvrlist) != 0 {
 		gvr = gvrlist[0]
+		gv := gvr.GroupVersion()
+		obj.SetAPIVersion(gv.String())
 	} else {
 		gv, _ := schema.ParseGroupVersion(obj.GetAPIVersion())
 		gvr = schema.GroupVersionResource{
@@ -166,11 +169,18 @@ func (m *MoveEngineAction) syncObj(obj unstructured.Unstructured) error {
 		Namespace(obj.GetNamespace()).
 		Create(&obj, metav1.CreateOptions{})
 	if err != nil {
-		return err
+		//TODO
+		if !k8serror.IsAlreadyExists(err) {
+			return err
+		}
+	} else {
+		m.log.Info("Object created",
+			"Resource", obj.GetAPIVersion(),
+			"Kind", obj.GetKind(),
+			"Name", obj.GetName())
 	}
 
-	m.log.Info("Object created %v/%v/%v\n", obj.GetAPIVersion(), obj.GetKind(), obj.GetName())
-	m.addToSyncedResourceList(obj)
+	m.updateSyncStatus(obj)
 	//TODO if volume or PVC need to append in list
 	return nil
 }
