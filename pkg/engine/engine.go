@@ -2,7 +2,6 @@ package engine
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
@@ -119,7 +118,7 @@ func (m *MoveEngineAction) ParseResourceEngine(mov *v1alpha1.MoveEngine) error {
 			Name:      mov.Spec.MovePair},
 		m.client)
 	if err != nil {
-		fmt.Printf("Failed to fetch movePair %v.. %v\n", mov.Spec.MovePair, err)
+		m.log.Error(err, "Failed to fetch movePair %v.. %v\n", mov.Spec.MovePair)
 		return err
 	}
 
@@ -129,7 +128,7 @@ func (m *MoveEngineAction) ParseResourceEngine(mov *v1alpha1.MoveEngine) error {
 
 	ls, err := metav1.LabelSelectorAsSelector(mov.Spec.Selectors)
 	if err != nil {
-		fmt.Printf("Failed to parse label selector %v\n", err)
+		m.log.Error(err, "Failed to parse label selector")
 		return err
 	}
 

@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -36,17 +35,25 @@ func (m *MoveEngineAction) CreateResourceAtRemote(gvr schema.GroupVersionResourc
 
 	for _, v := range objMap {
 		if m.isResourceSynced(v) {
-			fmt.Printf("Skipping synced object %v/%v/%v, since already synced\n", v.GetAPIVersion(), v.GetKind(), v.GetName())
-			continue
+			m.log.Info("Skipping already synced object",
+				"APIVersion", v.GetAPIVersion(),
+				"Kind", v.GetKind(),
+				"Name", v.GetName())
 		}
 
 		if err := m.transformObj(v); err != nil {
-			fmt.Printf("Failed to transform object %v/%v/%v.. %v\n", v.GetAPIVersion(), v.GetKind(), v.GetName(), err)
+			m.log.Error(err, "Failed to transform object",
+				"APIVersion", v.GetAPIVersion(),
+				"Kind", v.GetKind(),
+				"Name", v.GetName())
 			continue
 		}
 
 		if err := m.syncObj(v); err != nil {
-			fmt.Printf("Failed to create object %v/%v/%v.. %v\n", v.GetAPIVersion(), v.GetKind(), v.GetName(), err)
+			m.log.Error(err, "Failed to create object ",
+				"APIVersion", v.GetAPIVersion(),
+				"Kind", v.GetKind(),
+				"Name", v.GetName())
 			continue
 		}
 	}
@@ -161,7 +168,8 @@ func (m *MoveEngineAction) syncObj(obj unstructured.Unstructured) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Object created %v/%v/%v\n", obj.GetAPIVersion(), obj.GetKind(), obj.GetName())
+
+	m.log.Info("Object created %v/%v/%v\n", obj.GetAPIVersion(), obj.GetKind(), obj.GetName())
 	m.addToSyncedResourceList(obj)
 	//TODO if volume or PVC need to append in list
 	return nil
@@ -178,7 +186,11 @@ func (m *MoveEngineAction) ShouldRestore(obj unstructured.Unstructured) bool {
 		for _, o := range or {
 			sr := newMResourceFromOR(o)
 			if _, ok := m.getFromResourceList(sr); ok {
-				fmt.Printf("%v/%v already created by %v/%v\n", obj.GetKind(), obj.GetName(), o.Kind, o.Name)
+				m.log.Info("Object is already created",
+					"OwnerKind", o.Kind,
+					"OwnerName", o.Name,
+					"Kind", obj.GetKind(),
+					"Name", obj.GetName())
 				shouldRestore = false
 				break
 			} else if o.Kind == "ReplicaSet" {
@@ -189,7 +201,10 @@ func (m *MoveEngineAction) ShouldRestore(obj unstructured.Unstructured) bool {
 				ro, err := m.getResource(o.Name, obj.GetNamespace(), o.Kind)
 				if err != nil {
 					//TODO check if not exist
-					fmt.Printf("Failed to fetch %v/%v/%v.. %v\n", obj.GetNamespace(), o.Kind, o.Name, err)
+					m.log.Error(err, "Failed to fetch object",
+						"Namespace", obj.GetNamespace(),
+						"Kind", o.Kind,
+						"Name", o.Name)
 					continue
 				}
 				//TODO refactor
