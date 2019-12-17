@@ -204,7 +204,7 @@ func (m *MoveEngineAction) UpdateMoveEngineStatus(err error) error {
 	}
 
 	newStatus.SyncedTime = metav1.Time{Time: time.Now()}
-	newStatus.LastSyncedTime = lastStatus.LastSyncedTime
+	newStatus.LastSyncedTime = lastStatus.SyncedTime
 	newStatus.LastStatus = lastStatus.Status
 
 	for _, l := range m.syncedResourceMap {
