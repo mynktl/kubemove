@@ -64,15 +64,16 @@ func init() {
 
 // VolumeStatus sync status of volumes
 type VolumeStatus struct {
-	Namespace      string      `json:"namespace"`
-	PVC            string      `json:"pvc"`
-	Status         string      `json:"Status"`
-	SyncedTime     metav1.Time `json:"Synced"`
-	LastStatus     string      `json:"lastStatus"`
-	LastSyncedTime metav1.Time `json:"lastSyncedTime"`
-	Reason         string      `json:"reason"`
-	Volume         string      `json:"Volume"`
-	RemoteVolume   string      `json:"RemoteVolume"`
+	Namespace       string      `json:"namespace"`
+	RemoteNamespace string      `json:"remoteNamespace"`
+	PVC             string      `json:"pvc"`
+	Status          string      `json:"Status"`
+	SyncedTime      metav1.Time `json:"Synced"`
+	LastStatus      string      `json:"lastStatus"`
+	LastSyncedTime  metav1.Time `json:"lastSyncedTime"`
+	Reason          string      `json:"reason"`
+	Volume          string      `json:"Volume"`
+	RemoteVolume    string      `json:"RemoteVolume"`
 }
 
 // ResourceStatus sync status of resource

@@ -123,8 +123,8 @@ func (m *MoveEngineAction) transformObj(obj unstructured.Unstructured) error {
 	unstructured.RemoveNestedField(obj.Object, "spec", "status")
 
 	if len(obj.GetNamespace()) != 0 {
-		if len(m.mov.Spec.RemoteNamespace) != 0 {
-			obj.SetNamespace(m.mov.Spec.RemoteNamespace)
+		if len(m.MEngine.Spec.RemoteNamespace) != 0 {
+			obj.SetNamespace(m.MEngine.Spec.RemoteNamespace)
 		}
 	}
 
@@ -169,7 +169,7 @@ func (m *MoveEngineAction) syncObj(obj unstructured.Unstructured) error {
 		Namespace(obj.GetNamespace()).
 		Create(&obj, metav1.CreateOptions{})
 	if err != nil {
-		//TODO
+		//TODO check if spec is same or not
 		if !k8serror.IsAlreadyExists(err) {
 			return err
 		}
@@ -231,6 +231,8 @@ func (m *MoveEngineAction) ShouldRestore(obj unstructured.Unstructured) bool {
 		m.addToExposedResourceList(obj)
 		//TODO check if switch call
 		shouldRestore = false
+	case "StorageClass":
+		shouldRestore = true
 	}
 
 	return shouldRestore

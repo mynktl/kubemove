@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -11,24 +12,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 //TODO
 // new package for status
 
-type resourceStatusFn func(*MoveEngineAction, unstructured.Unstructured) *v1alpha1.ResourceStatus
+//TODO
+var PVCWaitTime = 5 * time.Second
+var PVCWaitInterval = 1 * time.Second
 
-//TODO move to global action i.e postSync Action
-var statusAction = map[string]resourceStatusFn{
-	"deployment":            deploymentStatus,
-	"persistentvolume":      pvStatus,
-	"persistentvolumeclaim": pvcStatus,
-	"namespace":             nsStatus,
+type resourceStatusFn func(*MoveEngineAction, unstructured.Unstructured) interface{}
+
+var statusAction map[string]resourceStatusFn
+
+func init() {
+	//TODO move to global action i.e postSync Action
+	statusAction = map[string]resourceStatusFn{
+		"deployment":            deploymentStatus,
+		"persistentvolume":      pvStatus,
+		"persistentvolumeclaim": pvcStatus,
+		"namespace":             nsStatus,
+	}
 }
 
 func (m *MoveEngineAction) updateSyncStatus(obj unstructured.Unstructured) {
-	rs := newResourceStatus(obj)
+	var (
+		rs   *v1alpha1.ResourceStatus
+		pvRs *v1alpha1.VolumeStatus
+		ok   bool
+	)
+
+	rs = newResourceStatus(obj)
 	rs.Phase = "Synced"
 
 	kind := strings.ToLower(obj.GetKind())
@@ -38,14 +54,34 @@ func (m *MoveEngineAction) updateSyncStatus(obj unstructured.Unstructured) {
 		if newRs == nil {
 			m.log.Error(nil, "Unable to update resourceStatus", "Resource", obj.GetKind(), "Name", obj.GetName())
 		} else {
-			rs = newRs
+			// If it is PV then we will skip the syncedResourceList and add it to syncedVolMap
+			switch kind {
+			case "persistentvolume":
+				pvRs, ok = newRs.(*v1alpha1.VolumeStatus)
+				if ok {
+					m.addToSyncedVolumesList(obj, *pvRs)
+				}
+				return
+			default:
+				var r *v1alpha1.ResourceStatus
+				r, ok = newRs.(*v1alpha1.ResourceStatus)
+				if ok {
+					rs = r
+				}
+			}
+			if !ok {
+				m.log.Error(nil, fmt.Sprintf("Failed to parse status.. unexpected type %T", newRs), "Resource", kind, "Name", obj.GetName())
+			}
 		}
 	}
-	m.addToSyncedResourceList(obj, *rs)
+
+	if kind != "persistentvolume" {
+		m.addToSyncedResourceList(obj, *rs)
+	}
 	return
 }
 
-func deploymentStatus(m *MoveEngineAction, obj unstructured.Unstructured) *v1alpha1.ResourceStatus {
+func deploymentStatus(m *MoveEngineAction, obj unstructured.Unstructured) interface{} {
 	deploy := new(appsv1.Deployment)
 	rs := newResourceStatus(obj)
 	rs.Phase = "Synced"
@@ -67,50 +103,96 @@ func deploymentStatus(m *MoveEngineAction, obj unstructured.Unstructured) *v1alp
 	return rs
 }
 
-func pvStatus(m *MoveEngineAction, obj unstructured.Unstructured) *v1alpha1.ResourceStatus {
+func pvStatus(m *MoveEngineAction, obj unstructured.Unstructured) interface{} {
 	pv := new(v1.PersistentVolume)
-	rs := newResourceStatus(obj)
-	rs.Phase = "Synced"
+	vs := newVolumeStatus(obj)
 
-	newObj, err := fetchRemoteResourceFromObj(m.remoteClient, obj)
-	if err == nil {
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(newObj.UnstructuredContent(), pv); err == nil {
-			rs.Status = string(pv.Status.Phase)
-			rs.Reason = pv.Status.Reason
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), pv); err == nil {
+		vs.Status = string(pv.Status.Phase)
+
+		if yes := isPVDynamicallyProvisioned(obj); yes {
+			if pv.Spec.ClaimRef != nil {
+				claimRef := pv.Spec.ClaimRef
+				switch claimRef.Kind {
+				case "PersistentVolumeClaim":
+					vs.PVC = claimRef.Name
+					//TODO Need to fix.
+					if len(m.MEngine.Spec.Namespace) != 0 {
+						vs.Namespace = m.MEngine.Spec.Namespace
+					} else {
+						//TODO what if namespace re-mapping is used?
+						vs.Namespace = claimRef.Namespace
+					}
+					vs.RemoteNamespace = claimRef.Namespace
+					pvcObj, err := m.getResource(vs.PVC, vs.Namespace, "PersistentVolumeClaim")
+					if err == nil {
+						pvName, ok, err := unstructured.NestedString(pvcObj.Object, "spec", "volumeName")
+						if !ok || err != nil {
+							m.log.Error(nil, "No volume mentioned in PVC", "PVC", vs.PVC)
+						} else {
+							vs.Volume = pvName
+						}
+					} else {
+						m.log.Error(nil, fmt.Sprintf("PVC %v is not added to resource list", vs.PVC))
+					}
+				}
+			}
 		} else {
-			rs.Reason = err.Error()
+			vs.Volume = obj.GetName()
 		}
 	} else {
-		rs.Reason = err.Error()
+		vs.Reason = err.Error()
 	}
-	return rs
+	return vs
 }
 
-func pvcStatus(m *MoveEngineAction, obj unstructured.Unstructured) *v1alpha1.ResourceStatus {
+func pvcStatus(m *MoveEngineAction, obj unstructured.Unstructured) interface{} {
 	pvc := new(v1.PersistentVolumeClaim)
 
 	rs := newResourceStatus(obj)
 	rs.Phase = "Synced"
-	newObj, err := fetchRemoteResourceFromObj(m.remoteClient, obj)
-	if err == nil {
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(newObj.UnstructuredContent(), pvc); err == nil {
-			rs.Status = string(pvc.Status.Phase)
-			for _, c := range pvc.Status.Conditions {
-				rs.Reason = c.Reason
-				break
+
+	_ = wait.PollImmediate(PVCWaitInterval, PVCWaitTime, func() (bool, error) {
+		newObj, err := fetchRemoteResourceFromObj(m.remoteClient, obj)
+		if err == nil {
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(newObj.UnstructuredContent(), pvc); err == nil {
+				rs.Status = string(pvc.Status.Phase)
+				for _, c := range pvc.Status.Conditions {
+					rs.Reason = c.Reason
+					break
+				}
+
+				if pvc.Status.Phase == v1.ClaimBound {
+					pvName, ok, err := unstructured.NestedString(newObj.Object, "spec", "volumeName")
+					if !ok || err != nil {
+						m.log.Error(err, "Failed to parse volume from PVC", "Namespace", newObj.GetNamespace(), "Name", newObj.GetName())
+						//TODO should we report error?
+					} else {
+						pvObj, err := m.getRemoteResource(pvName, "", "PersistentVolume")
+						if err != nil {
+							m.log.Error(err, "Failed to fetch PV", "PV", pvName)
+							//TODO should we report error?
+						} else {
+							m.updateSyncStatus(pvObj)
+							return true, nil
+						}
+					}
+				} else if pvc.Status.Phase == v1.ClaimLost {
+					return true, nil
+				}
+			} else {
+				rs.Reason = err.Error()
 			}
 		} else {
 			rs.Reason = err.Error()
 		}
-
-	} else {
-		rs.Reason = err.Error()
-	}
+		return false, nil
+	})
 
 	return rs
 }
 
-func nsStatus(m *MoveEngineAction, obj unstructured.Unstructured) *v1alpha1.ResourceStatus {
+func nsStatus(m *MoveEngineAction, obj unstructured.Unstructured) interface{} {
 	ns := new(v1.Namespace)
 	rs := newResourceStatus(obj)
 	rs.Phase = "Synced"
@@ -131,6 +213,15 @@ func newResourceStatus(obj unstructured.Unstructured) *v1alpha1.ResourceStatus {
 		Kind:       obj.GetKind(),
 		Name:       obj.GetName(),
 		SyncedTime: metav1.Time{Time: timestamp},
+	}
+}
+
+func newVolumeStatus(obj unstructured.Unstructured) *v1alpha1.VolumeStatus {
+	// TODO need to add clock at upper level, moveengineaction
+	timestamp := time.Now()
+	return &v1alpha1.VolumeStatus{
+		RemoteVolume: obj.GetName(),
+		SyncedTime:   metav1.Time{Time: timestamp},
 	}
 }
 
