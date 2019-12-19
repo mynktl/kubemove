@@ -39,10 +39,18 @@ func (m *MoveEngineAction) parsePodPV(pv interface{}, ns string, isSTS bool) err
 					pvObj, err := m.getResource(pvName, "", "PersistentVolume")
 					if err != nil {
 						m.log.Error(err, "Failed to fetch PV", "PV", pvName)
+						continue
 					}
+
+					if err := m.parsePVSC(pvObj); err != nil {
+						m.log.Error(err, "Failed to parse SC for PV", pvName)
+						continue
+					}
+
 					if yes := isPVDynamicallyProvisioned(pvObj); yes {
 						continue
 					}
+
 					if isSTS {
 						m.addToSTSVolumeList(pvObj)
 					} else {
@@ -60,12 +68,12 @@ func pvParsePVC(o interface{}, m *MoveEngineAction, ns string, isSTS bool) (stri
 	if !ok {
 		return "", errors.Errorf("Unexpected type of object")
 	}
-	val, ok, err := unstructured.NestedString(pvc, "claimName")
+	pvcName, ok, err := unstructured.NestedString(pvc, "claimName")
 	if !ok || err != nil {
 		return "", err
 	}
 
-	pvcObj, err := m.getResource(val, ns, "PersistentVolumeClaim")
+	pvcObj, err := m.getResource(pvcName, ns, "PersistentVolumeClaim")
 	if err != nil {
 		return "", err
 	}
@@ -74,12 +82,12 @@ func pvParsePVC(o interface{}, m *MoveEngineAction, ns string, isSTS bool) (stri
 		m.addToResourceList(pvcObj)
 	}
 
-	val, ok, err = unstructured.NestedString(pvcObj.Object, "spec", "volumeName")
+	pvName, ok, err := unstructured.NestedString(pvcObj.Object, "spec", "volumeName")
 	if !ok || err != nil {
 		return "", err
 	}
 
-	return val, nil
+	return pvName, nil
 }
 
 func isPVDynamicallyProvisioned(obj unstructured.Unstructured) bool {
@@ -121,6 +129,23 @@ func (m *MoveEngineAction) parseVolumes(api metav1.APIResource, obj unstructured
 		if err != nil {
 			m.log.Error(err, "Failed to parse pod pv list", "Pod", obj.GetName(), "Namespace", obj.GetNamespace(), "PV", l)
 		}
+	}
+	return nil
+}
+
+func (m *MoveEngineAction) parsePVSC(pvObj unstructured.Unstructured) error {
+	scName, ok, err := unstructured.NestedString(pvObj.Object, "spec", "storageClassName")
+	if !ok || err != nil {
+		return err
+	}
+
+	scObj, err := m.getResource(scName, "", "StorageClass")
+	if err != nil {
+		return err
+	}
+
+	if yes := m.ShouldRestore(scObj); yes {
+		m.addToResourceList(scObj)
 	}
 	return nil
 }

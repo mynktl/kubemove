@@ -54,7 +54,7 @@ func (m *MoveEngineAction) parseAPIResource(api metav1.APIResource) error {
 			return errors.Wrapf(err, "Namespace sync failed")
 		}
 	}
-	if len(m.mov.Spec.Namespace) != 0 && api.Namespaced {
+	if len(m.MEngine.Spec.Namespace) != 0 && api.Namespaced {
 		if err := m.parseResourceList(api); err != nil {
 			return errors.Wrapf(err, "Failed to create resourceList for %v %v\n", api.Name, api.Group)
 		}
@@ -96,7 +96,7 @@ func (m *MoveEngineAction) ListResourcesFromAPI(api metav1.APIResource) (*unstru
 
 	ns := ""
 	if api.Namespaced {
-		ns = m.mov.Spec.Namespace
+		ns = m.MEngine.Spec.Namespace
 	}
 
 	err := m.client.List(
@@ -145,6 +145,27 @@ func (m *MoveEngineAction) getResource(name, ns, kind string) (unstructured.Unst
 	err = m.client.Get(
 		context.TODO(),
 		client.ObjectKey{Name: name, Namespace: ns},
+		obj)
+	return *obj, err
+}
+
+func (m *MoveEngineAction) getRemoteResource(name, ns, kind string) (unstructured.Unstructured, error) {
+	obj := &unstructured.Unstructured{}
+
+	gvr, err := m.remoteMapper.ResourceFor(schema.ParseGroupResource(kind).WithVersion(""))
+	if err != nil {
+		return *obj, err
+	}
+
+	gv := gvr.GroupVersion()
+	obj.SetAPIVersion(gv.String())
+	obj.SetKind(kind)
+	err = m.remoteClient.Get(
+		context.TODO(),
+		client.ObjectKey{
+			Name:      name,
+			Namespace: ns,
+		},
 		obj)
 	return *obj, err
 }
