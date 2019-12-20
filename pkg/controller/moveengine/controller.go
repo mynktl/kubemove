@@ -139,7 +139,7 @@ func (r *ReconcileMoveEngine) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	err = me.UpdateMoveEngineStatus(err)
+	err = me.UpdateMoveEngineStatus(err, dsName)
 	if err != nil {
 		r.log.Error(err, "Failed to update status")
 	}

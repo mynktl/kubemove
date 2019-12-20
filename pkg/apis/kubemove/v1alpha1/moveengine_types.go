@@ -33,6 +33,8 @@ type MoveEngineStatus struct {
 	LastStatus     string            `json:"LastStatus"`
 	SyncedTime     metav1.Time       `json:"SyncedTime"`
 	LastSyncedTime metav1.Time       `json:"LastSyncedTime"`
+	DataSync       string            `json:"DataSync"`
+	DataSyncStatus string            `json:"DataSyncStatus"`
 	Volumes        []*VolumeStatus   `json:"Volumes"`
 	Resources      []*ResourceStatus `json:"Resources"`
 }

@@ -198,9 +198,14 @@ func (m *MoveEngineAction) updateClient(mpair *v1alpha1.MovePair) error {
 	return nil
 }
 
-func (m *MoveEngineAction) UpdateMoveEngineStatus(err error) error {
+func (m *MoveEngineAction) UpdateMoveEngineStatus(err error, ds string) error {
 	lastStatus := m.MEngine.Status
 	newStatus := v1alpha1.MoveEngineStatus{}
+
+	if len(ds) == 0 {
+		return errors.New("Empty dataSync")
+	}
+
 	if err != nil {
 		newStatus.Status = "Errored"
 	} else {
@@ -222,6 +227,8 @@ func (m *MoveEngineAction) UpdateMoveEngineStatus(err error) error {
 		r := l
 		newStatus.Volumes = append(newStatus.Volumes, &r)
 	}
+
+	newStatus.DataSync = ds
 
 	m.MEngine.Status = newStatus
 	return m.client.Update(context.TODO(), &m.MEngine)
