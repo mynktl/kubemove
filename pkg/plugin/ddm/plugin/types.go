@@ -13,3 +13,11 @@ type Plugin interface {
 	Sync(string, bool, map[string]string, []*Volume) (string, error)
 	Init(map[string]string) error
 }
+
+const (
+	Completed = iota
+	InProgress
+	Invalid
+	Canceled
+	Errored
+)
