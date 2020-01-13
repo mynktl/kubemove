@@ -17,32 +17,36 @@ var conn *grpc.ClientConn
 
 // TODO args fn to get user input
 func NewClient(name string, opt Initializer) error {
-	sAddr, err := getServerAddr()
+	var wg sync.WaitGroup
+	sAddrList, err := getServerAddr()
 	if err != nil {
-		fmt.Printf("Failed to get server details %v\n", err)
 		return errors.Wrapf(err, "Insufficient server details")
 	}
 
 	cAddr, err := getClientAddr()
 	if err != nil {
-		fmt.Printf("Failed to get client details %v\n", err)
 		return errors.Wrapf(err, "Insufficient client details")
 	}
 
 	mux.Lock()
 	defer mux.Unlock()
-	go createServer(cAddr, opt)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		createServer(cAddr, opt)
+	}()
+
 	if err != nil {
-		fmt.Printf("Failed to create server\n")
 		return errors.Wrapf(err, "Failed to create server")
 	}
 
-	conn, err = register(name, cAddr, sAddr)
-	if err != nil {
-		fmt.Printf("Failed to register plugin.. %v\n", err)
-		return errors.Wrapf(err, "Failed to register plugin")
+	for _, sAddr := range sAddrList {
+		conn, err = register(name, cAddr, sAddr)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to register plugin")
+		}
 	}
-
+	wg.Wait()
 	return nil
 }
 
@@ -51,7 +55,7 @@ func createServer(cAddr *addr, opt Initializer) {
 
 	lis, err := net.Listen("tcp", cAddr.addr)
 	if err != nil {
-		fmt.Printf("Failed to create a server. %v\n", err)
+		panic(err)
 		return
 	}
 
@@ -59,10 +63,9 @@ func createServer(cAddr *addr, opt Initializer) {
 	opt(s)
 
 	if err := s.Serve(lis); err != nil {
-		fmt.Printf("Failed to server.. %v\n", err)
+		panic(err)
 		return
 	}
-	fmt.Printf("for\n")
 	return
 }
 

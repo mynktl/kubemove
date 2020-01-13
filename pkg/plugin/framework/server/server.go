@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -55,7 +54,6 @@ func getServerAddr() (string, string, error) {
 
 	_, err := strconv.ParseUint(cport, 10, 16)
 	if err != nil {
-		fmt.Printf("Unable to parse port.. %v\n", err)
 		return "", "", errors.Wrapf(err, "Unable to parse port")
 	}
 
@@ -65,8 +63,6 @@ func getServerAddr() (string, string, error) {
 func (s *server) Serve() {
 	s.active = true
 	if err := s.gs.Serve(s.lis); err != nil {
-		fmt.Printf("Failed to start server %v\n", err)
-		os.Exit(1)
+		panic(err)
 	}
-
 }

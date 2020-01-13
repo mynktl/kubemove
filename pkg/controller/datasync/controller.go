@@ -31,7 +31,8 @@ func Add(mgr manager.Manager) error {
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	ddm, err := server.NewDDMServer()
 	if err != nil {
-
+		log.Error(err, "Failed to create DDM server")
+		return nil
 	}
 
 	return &ReconcileDataSync{

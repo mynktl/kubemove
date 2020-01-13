@@ -1,9 +1,9 @@
 package client
 
 import (
-	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -31,15 +31,12 @@ func getClientAddr() (*addr, error) {
 	caddr := os.Getenv(ENV_CLIENT_ADDR)
 	cport := os.Getenv(ENV_CLIENT_PORT)
 
-	fmt.Println(cport)
-
 	if len(cport) == 0 {
 		cport = DEFAULT_CLIENT_PORT
 	}
 
 	_, err = strconv.ParseUint(cport, 10, 16)
 	if err != nil {
-		fmt.Printf("Unable to parse port.. %v\n", err)
 		return nil, errors.Wrapf(err, "Unable to parse port")
 	}
 
@@ -48,26 +45,38 @@ func getClientAddr() (*addr, error) {
 	}, nil
 }
 
-func getServerAddr() (*addr, error) {
+func getServerAddr() ([]*addr, error) {
+	var saddr []*addr
 	caddr := os.Getenv(ENV_SERVER_ADDR)
-	//TODO
 	cport := os.Getenv(ENV_SERVER_PORT)
-	cport = "9000"
-	cert := os.Getenv(ENV_SERVER_CERT)
 
 	if len(cport) == 0 {
-		fmt.Printf("Empty server address\n")
-		return nil, errors.New("Insufficient server details")
+		cport = "9000"
 	}
 
-	_, err := strconv.ParseUint(cport, 10, 16)
-	if err != nil {
-		fmt.Printf("Unable to parse port.. %v\n", err)
-		return nil, errors.Wrapf(err, "Unable to parse port")
+	cert := os.Getenv(ENV_SERVER_CERT)
+
+	aip := strings.Split(caddr, ",")
+	aport := strings.Split(cport, ",")
+
+	if len(aip) != len(aport) {
+		return nil, errors.Errorf("Invalid server address/port")
 	}
 
-	return &addr{
-		addr: caddr + ":" + cport,
-		cert: cert,
-	}, nil
+	for _, k := range aport {
+		_, err := strconv.ParseUint(k, 10, 16)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Unable to parse port")
+		}
+	}
+
+	for k := range aip {
+		laddr := &addr{
+			addr: aip[k] + ":" + aport[k],
+			cert: cert,
+		}
+		saddr = append(saddr, laddr)
+	}
+
+	return saddr, nil
 }

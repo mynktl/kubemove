@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	pb "github.com/kubemove/kubemove/pkg/plugin/framework/proto"
@@ -13,7 +12,6 @@ import (
 func register(name string, cAddr, sAddr *addr) (*grpc.ClientConn, error) {
 	conn, err := grpc.Dial(sAddr.addr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		fmt.Printf("did not connect: %v\n", err)
 		return nil, errors.Wrapf(err, "Failed to make connection")
 	}
 
@@ -29,10 +27,9 @@ func register(name string, cAddr, sAddr *addr) (*grpc.ClientConn, error) {
 		})
 
 	if err != nil {
-		fmt.Printf("Error registering plugin.. %v\n", err)
 		conn.Close()
 		return nil, errors.Wrapf(err, "Error registering plugin")
 	}
-	fmt.Printf("Got response %v\n", res)
+
 	return conn, nil
 }
