@@ -1,4 +1,4 @@
-all: datasync engine pair
+all: datasync engine pair dummy_plugin
 
 PACKAGES = $(shell go list ./... | grep -v 'vendor')
 
