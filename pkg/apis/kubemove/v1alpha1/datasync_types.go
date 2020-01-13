@@ -4,45 +4,71 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // DataVolume defines volume space for dataSync
 type DataVolume struct {
-	Namespace       string            `json:"namespace"`
-	Name            string            `json:"name"`
-	PVC             string            `json:"pvc"`
-	RemoteName      string            `json:"remoteName"`
-	RemoteNamespace string            `json:"remoteNamespace"`
-	Param           map[string]string `json:"param"`
+	// Namespace is given volume's claim namespace
+	Namespace string `json:"namespace"`
+
+	// Name is given volume name
+	Name string `json:"name"`
+
+	// PVC is name of PVC for given volume
+	PVC string `json:"pvc"`
+
+	// RemoteName is volume name generated at remote cluster for
+	// given volume
+	RemoteName string `json:"remoteName"`
+
+	// RemoteNamespace is remote volume's claim namespace
+	RemoteNamespace string `json:"remoteNamespace"`
+
+	// Param is key/value pair for given volumes
+	Param map[string]string `json:"param,omitempty"`
 }
 
 // DataSyncSpec defines the desired state of DataSync
 // +k8s:openapi-gen=true
 type DataSyncSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
-	Volume         []*DataVolume     `json:"volume"`
-	Namespace      string            `json:"namespace"`
-	PluginProvider string            `json:"plugin"`
-	MoveEngine     string            `json:"moveEngine"`
-	Backup         bool              `json:"backup"`
-	Restore        bool              `json:"restore"`
-	Config         map[string]string `json:"config"`
+	// Volume is list having information about volume at source and remote cluster
+	Volume []*DataVolume `json:"volume"`
+
+	// Namespace is source cluster's namespace for which migration is running
+	Namespace string `json:"namespace"`
+
+	// PluginProvider is plugin name to be used for migration
+	// +kubebuilder:validation:MinLength=1
+	PluginProvider string `json:"plugin"`
+
+	// MoveEngine is name of engine for which DataSync resource is generated
+	// +kubebuilder:validation:MinLength=1
+	MoveEngine string `json:"moveEngine"`
+
+	// Active is to decide if current cluster is sender or receiver
+	Active bool `json:"backup"`
+
+	// Config is list of parameters for Plugin
+	Config map[string]string `json:"config,omitempty"`
 }
 
 // DataSyncStatus defines the observed state of DataSync
 // +k8s:openapi-gen=true
 type DataSyncStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
-	Stage          string          `json:"stage"`
-	Status         string          `json:"status"`
-	CompletionTime string          `json:"completionTime"`
-	Volumes        []*VolumeStatus `json:"volume"`
-	Reason         string          `json:"reason"`
+	// Stage defines DataSync execution phase
+	// +kubebuilder:validation:Enum=Init;Errored;Canceled;InProgress;Done
+	Stage string `json:"stage"`
+
+	// Status defines final status of DataSync
+	// +kubebuilder:validation:Enum=Init;Done;Failed
+	Status string `json:"status"`
+
+	// CompletionTime is time when migration for current DataSync completed
+	CompletionTime string `json:"completionTime"`
+
+	// Volumes is list of volume migration status
+	Volumes []*VolumeStatus `json:"volume"`
+
+	// Reason is an error message
+	Reason string `json:"reason"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

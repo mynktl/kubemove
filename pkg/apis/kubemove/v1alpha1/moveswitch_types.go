@@ -4,29 +4,33 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // MoveSwitchSpec defines the desired state of MoveSwitch
 // +k8s:openapi-gen=true
 type MoveSwitchSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
+	// MoveEngine is name of the engine which needs to
+	// be switched(/activated) to remote cluster
 	MoveEngine string `json:"moveEngine"`
-	Active     bool   `json:"active"`
+
+	// Active defines if this resource will be processed or not
+	Active bool `json:"active"`
 }
 
 // MoveSwitchStatus defines the observed state of MoveSwitch
 // +k8s:openapi-gen=true
 type MoveSwitchStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
-	Stage  string
-	Status string
-	Reason string
-	Volume []*VolumeStatus
+	// Stage defines progress stage of MoveSwitch
+	// +kubebuilder:validation:Enum=Init;InProgress;Errored;Completed
+	Stage string `json:"stage"`
+
+	// Status defines final stage/status of MoveSwitch
+	// +kubebuilder:validation:Enum=Init;Done;Failed
+	Status string `json:"status"`
+
+	// Reason is an error message
+	Reason string `json:"reason"`
+
+	// Volumes is list of volumes with status
+	Volumes []*VolumeStatus `json:"volumes"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
