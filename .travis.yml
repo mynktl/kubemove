@@ -13,12 +13,11 @@ addons:
   apt:
     update: true
 
-install:
-  - make bootstrap
-
 script:
   - make vet
-  - make golint
+  - make dev-image
+  - make lint
+  - make format
   - make
 
 after_success:
