@@ -13,9 +13,14 @@ addons:
   apt:
     update: true
 
+install:
+  - make bootstrap
+
 script:
   - make vet
   - make golint
   - make
+
+after_success:
   - make images
   - make deploy-images

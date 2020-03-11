@@ -40,6 +40,10 @@ endif
 
 all: datasync engine pair dummy_plugin
 
+.PHONY: bootstrap
+bootstrap:
+	@go get -u gopkg.in/alecthomas/gometalinter.v1
+
 vet:
 	go vet ${PACKAGES}
 
