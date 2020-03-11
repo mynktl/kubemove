@@ -18,7 +18,7 @@ script:
     # TODO
     #  - make dev-image
     #  - make lint
-  - make format
+    # - make format
   - make
 
 after_success:
