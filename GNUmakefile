@@ -44,8 +44,8 @@ vet:
 	go vet ${PACKAGES}
 
 golint:
-	@gometalinter --install
-	@gometalinter --vendor --disable-all -E errcheck -E misspell ./...
+	@gometalinter.v1 --install
+	@gometalinter.v1 --vendor --disable-all -E errcheck -E misspell ./...
 
 $(BUILD_DIRS):
 	@mkdir -p $@
